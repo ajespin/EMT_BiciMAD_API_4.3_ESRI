@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Create a FeatureLayer with client side graphics - 4.3</title>
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+
+    #infoDiv {
+      position: absolute;
+      bottom: 15px;
+      right: 0;
+      max-height: 80%;
+      max-width: 300px;
+      background-color: black;
+      padding: 8px;
+      border-top-left-radius: 5px;
+      color: white;
+      opacity: 0.8;
+    }
+  </style>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.3/esri/css/main.css">
+  <script src="https://js.arcgis.com/4.3/"></script>
+
+  <script>
+    require([
+      "esri/views/MapView",
+      "esri/Map",
+      "esri/layers/FeatureLayer",
+      "esri/layers/support/Field",
+      "esri/geometry/Point",
+      "esri/Color",
+      "esri/renderers/SimpleRenderer",
+      "esri/symbols/SimpleMarkerSymbol",
+      "esri/widgets/Legend",
+      "esri/request",
+      "esri/config",
+      "esri/geometry/support/webMercatorUtils",
+      "dojo/_base/array",
+      "dojo/_base/json",
+      "dojo/dom",
+      "dojo/on",
+      "dojo/domReady!"
+    ], function(MapView, Map, FeatureLayer, Field, Point,Color,
+      SimpleRenderer, SimpleMarkerSymbol, Legend, esriRequest,esriConfig,
+      webMercatorUtils,arrayUtils, dojoJson, dom, on
+    ) {
+      esriConfig.request.proxyUrl = "http://laptop-kfa63k1v/resource-proxy/DotNet/proxy.ashx";
+      var lyr, legend;
+
+      /**************************************************
+       Se definen los campos de la capa
+       **************************************************/
+
+      var fields = [
+      {
+        name: "ObjectID",
+        alias: "ObjectID",
+        type: "oid"
+      }, {
+        name: "name",
+        alias: "nombre",
+        type: "string"
+      }, {
+        name: "no_available",
+        alias: "disponibilidad",
+        type: "integer"
+      }, {
+        name: "total_bases",
+        alias: "basestotales",
+        type: "integer"
+      }, {
+        name: "dock_bikes",
+        alias: "bicisancladas",
+        type: "integer"
+      }, {
+        name: "free_bases",
+        alias: "baseslibres",
+        type: "integer"
+      }, {
+        name: "reservations_count",
+        alias: "basesreservadas",
+        type: "integer"
+      }/*, {
+        name: "time",
+        alias: "time",
+        type: "date"
+      }*/];
+
+      // se coloca el pop up template para la capa
+      var pTemplate = {
+        title: "Estaciones",
+        content: [{
+          type: "fields",
+          fieldInfos: [{
+            fieldName: "name",
+            label: "Nombre: ",
+            visible: true
+          }, {
+            fieldName: "no_available",
+            label: "Disponibilidad: ",
+            visible: false
+          }, {
+            fieldName: "total_bases",
+            label: "Bases de la estación: ",
+            visible: true
+          }, {
+            fieldName: "dock_bikes",
+            label: "Bicis ancladas:",
+            visible: true
+          }, {
+            fieldName: "free_bases",
+            label: "Bicis Disponibles: ",
+            visible: true
+          }, {
+            fieldName: "reservations_count",
+            label: "Bicis reservadas: ",
+            visible: true
+          },/*{
+            fieldName: "time",
+            label: "Actualización: ",
+            visible: true
+          }*/]
+        }],
+        /*fieldInfos: [{
+          fieldName: "time",
+          format: {
+            dateFormat: "short-date-short-time"
+          }
+        }]*/
+      };
+
+      /**************************************************
+       creamos mapa y vista
+       **************************************************/
+
+      var map = new Map({
+        basemap: "streets"
+      });
+
+      // se crea la vista
+      var view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-3.68, 40.43],
+        zoom: 13,
+        // lugar para la leyenda
+        ui: {
+          padding: {
+            bottom: 15,
+            right: 0
+          }
+        }
+      });
+
+      /**************************************************
+       se define el render para
+       **************************************************/
+
+      var rendererbici = new SimpleRenderer({
+        symbol: new SimpleMarkerSymbol({
+          fields:fields,
+          style: "circle",
+          size: 10,
+          color: [211, 255, 251, 125],
+          outline: {
+            width: 1,
+            color: "#FF0055",
+            style: "solid"
+          }
+        }),
+        visualVariables: [
+        {
+          type: "color",
+          field: "no_available", // earthquake magnitude
+          //valueExpresion:view.escale,
+          // Define size of mag 2 quakes based on scale
+          minSize: {
+            type: "color",
+            stops : [
+            {
+              value: 0,
+              colour: "green"
+            },
+            {
+              value: 1,
+              color: "yellow"
+            },
+            {
+              value: 2,
+              color: "red"
+            }]
+          },
+
+        }]
+      });
+
+      view.then(function() {
+        // Request the earthquake data from USGS when the view resolves
+        getData()
+          .then(createGraphics) // then send it to the createGraphics() method
+          .then(createLayer) // when graphics are created, create the layer
+          .then(createLegend) // when layer is created, create the legend
+          .otherwise(errback);
+// respdata borrar
+      });
+
+      // Request the earthquake data
+      function getData() {
+
+        //se realiza una peticion al servidor de bicimad
+
+        var url = "https://rbdata.emtmadrid.es:8443/BiciMad/get_stations/WEB.SERV.antoniojesusespin@gmail.com/081DB9D0-22BD-4765-866D-4C08E4EA8050/";
+
+        return esriRequest(url, {
+        responseType: "json"
+        });
+  }
+
+      /**************************************************
+       * Crear un Json con la información  que devuelve el geojson
+       **************************************************/
+      function createGraphics(response) {
+        // raw GeoJSON data
+
+          //transformar el arrayjson en objetojson
+          var stationjson=JSON.parse(response.data.data);
+          var response=stationjson;
+
+        // crear un array de graficos para cada stationjson.
+        return arrayUtils.map(stationjson.stations, function(station, i) {
+
+          var long = parseFloat(station.longitude);
+          var lat = parseFloat(station.latitude);
+
+          var p = new Point({
+            longitude: long,
+            latitude: lat
+          })
+
+          return {
+            geometry: p ,
+            // select only the attributes you care about
+            attributes: {
+              ObjectID: i,
+              name: station.name,
+              no_avaliable: station.no_available,
+              total_bases: station.total_bases,
+              dock_bikes: station.dock_bikes,
+              free_bases: station.free_bases,
+              reservations_count: station.reservations_count,
+            }
+          };
+        });
+      }
+
+      /**************************************************
+       * Create a FeatureLayer with the array of graphics
+       **************************************************/
+
+      function createLayer(graphics) {
+
+        lyr = new FeatureLayer({
+          source: graphics, // autocast as an array of esri/Graphic
+          // create an instance of esri/layers/support/Field for each field object
+          fields: fields, // This is required when creating a layer from Graphics
+          objectIdField: "ObjectID", // This must be defined when creating a layer from Graphics
+          renderer: rendererbici, // set the visualization on the layer
+          spatialReference: {
+            wkid: 4326
+          },
+          geometryType: "point", // Must be set when creating a layer from Graphics
+          popupTemplate: pTemplate
+        });
+
+        map.add(lyr);
+        return lyr;
+      }
+
+      /******************************************************************
+       * Add layer to layerInfos in the legend
+       ******************************************************************/
+
+      function createLegend(layer) {
+        // if the legend already exists, then update it with the new layer
+        if (legend) {
+          legend.layerInfos = [{
+            layer: layer,
+            title: "Estaciones"
+          }];
+        } else {
+          legend = new Legend({
+            view: view,
+            layerInfos: [
+            {
+              layer: layer,
+              title: "Estaciones"
+            }]
+          }, "infoDiv");
+        }
+      }
+
+      // Executes if data retrieval was unsuccessful. free_bases
+    function errback(error) {
+        console.error("Creating legend failed. ", error);
+      }
+
+    });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+  <div id="infoDiv">
+    <h2>Estaciones</h2>
+
+  </div>
+</body>
+</html>
