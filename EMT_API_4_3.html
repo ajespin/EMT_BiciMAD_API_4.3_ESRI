@@ -39,6 +39,7 @@
       "esri/layers/support/Field",
       "esri/geometry/Point",
       "esri/Color",
+      "esri/renderers/UniqueValueRenderer",
       "esri/renderers/SimpleRenderer",
       "esri/symbols/SimpleMarkerSymbol",
       "esri/widgets/Legend",
@@ -50,7 +51,7 @@
       "dojo/dom",
       "dojo/on",
       "dojo/domReady!"
-    ], function(MapView, Map, FeatureLayer, Field, Point,Color,
+    ], function(MapView, Map, FeatureLayer, Field, Point,Color,UniqueValueRenderer,
       SimpleRenderer, SimpleMarkerSymbol, Legend, esriRequest,esriConfig,
       webMercatorUtils,arrayUtils, dojoJson, dom, on
     ) {
@@ -86,9 +87,9 @@
         name: "free_bases",
         alias: "baseslibres",
         type: "integer"
-      }, {
-        name: "reservations_count",
-        alias: "basesreservadas",
+      }, ,{
+        name: "light",
+        alias: "ocupacion",
         type: "integer"
       }/*, {
         name: "time",
@@ -119,7 +120,7 @@
             visible: true
           }, {
             fieldName: "free_bases",
-            label: "Bicis Disponibles: ",
+            label: "Bases libres: ",
             visible: true
           }, {
             fieldName: "reservations_count",
@@ -166,43 +167,35 @@
        se define el render para
        **************************************************/
 
-      var rendererbici = new SimpleRenderer({
-        symbol: new SimpleMarkerSymbol({
-          fields:fields,
-          style: "circle",
-          size: 10,
-          color: [211, 255, 251, 125],
-          outline: {
-            width: 1,
-            color: "#FF0055",
-            style: "solid"
-          }
-        }),
-        visualVariables: [
-        {
-          type: "color",
-          field: "no_available", // earthquake magnitude
-          //valueExpresion:view.escale,
-          // Define size of mag 2 quakes based on scale
-          minSize: {
-            type: "color",
-            stops : [
-            {
-              value: 0,
-              colour: "green"
-            },
-            {
-              value: 1,
-              color: "yellow"
-            },
-            {
-              value: 2,
-              color: "red"
-            }]
-          },
+       var rendererbici = new UniqueValueRenderer({
+         field:"light",
+         uniqueValueInfos: [
+              {
+               value: 0,  // features labeled as "High"
+               symbol: new SimpleMarkerSymbol({
+                      style: "circle",
+                      color: "green",
+                      size: 10,
+                      label:"hola"
 
-        }]
-      });
+                    }),
+              }, {
+               value: 1,  // features labeled as "Medium"
+               symbol: new SimpleMarkerSymbol({
+                      style: "circle",
+                      color: "yellow",
+                      size: 10
+                    }),   // will be assigned sym2
+              }, {
+                value: 2,  // features labeled as "Low"
+                symbol: new SimpleMarkerSymbol({
+                      style: "circle",
+                      color: "red",
+                      size: 10
+                    }),  // will be assigned sym2
+              }
+         ]
+       });
 
       view.then(function() {
         // Request the earthquake data from USGS when the view resolves
@@ -258,6 +251,7 @@
               dock_bikes: station.dock_bikes,
               free_bases: station.free_bases,
               reservations_count: station.reservations_count,
+              light:station.light
             }
           };
         });
@@ -303,7 +297,7 @@
             layerInfos: [
             {
               layer: layer,
-              title: "Estaciones"
+              title: "Grado de ocupación"
             }]
           }, "infoDiv");
         }
