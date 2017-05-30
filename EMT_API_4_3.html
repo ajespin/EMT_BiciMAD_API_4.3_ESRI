@@ -87,25 +87,25 @@
         name: "free_bases",
         alias: "baseslibres",
         type: "integer"
-      }, ,{
+      }, {
         name: "light",
         alias: "ocupacion",
         type: "integer"
-      }/*, {
-        name: "time",
-        alias: "time",
-        type: "date"
-      }*/];
+      }, {
+        name: "reservations_count",
+        alias: "bicis_reservadas",
+        type: "float"
+      }];
 
       // se coloca el pop up template para la capa
       var pTemplate = {
-        title: "Estaciones",
+        title: "Estacion: {name}" ,
         content: [{
           type: "fields",
           fieldInfos: [{
             fieldName: "name",
             label: "Nombre: ",
-            visible: true
+            visible: false
           }, {
             fieldName: "no_available",
             label: "Disponibilidad: ",
@@ -126,18 +126,9 @@
             fieldName: "reservations_count",
             label: "Bicis reservadas: ",
             visible: true
-          },/*{
-            fieldName: "time",
-            label: "Actualización: ",
-            visible: true
-          }*/]
+          }]
         }],
-        /*fieldInfos: [{
-          fieldName: "time",
-          format: {
-            dateFormat: "short-date-short-time"
-          }
-        }]*/
+
       };
 
       /**************************************************
@@ -164,14 +155,14 @@
       });
 
       /**************************************************
-       se define el render para
+       se define el render para el campo light
        **************************************************/
 
        var rendererbici = new UniqueValueRenderer({
          field:"light",
          uniqueValueInfos: [
               {
-               value: 0,  // features labeled as "High"
+               value: 0,
                symbol: new SimpleMarkerSymbol({
                       style: "circle",
                       color: "green",
@@ -180,29 +171,29 @@
 
                     }),
               }, {
-               value: 1,  // features labeled as "Medium"
+               value: 1,
                symbol: new SimpleMarkerSymbol({
                       style: "circle",
                       color: "yellow",
                       size: 10
-                    }),   // will be assigned sym2
+                    }),
               }, {
-                value: 2,  // features labeled as "Low"
+                value: 2,
                 symbol: new SimpleMarkerSymbol({
                       style: "circle",
                       color: "red",
                       size: 10
-                    }),  // will be assigned sym2
+                    }),
               }
          ]
        });
 
       view.then(function() {
-        // Request the earthquake data from USGS when the view resolves
+        //con get data realizamos la petición al servidor bicimad
         getData()
-          .then(createGraphics) // then send it to the createGraphics() method
-          .then(createLayer) // when graphics are created, create the layer
-          .then(createLegend) // when layer is created, create the legend
+          .then(createGraphics) //una vez realizada la peticion se crean los graficos a partir de los datos de bicimad
+          .then(createLayer) // se crea una capa de graficos
+          .then(createLegend) // se crea la leyenda
           .otherwise(errback);
 // respdata borrar
       });
@@ -223,7 +214,7 @@
        * Crear un Json con la información  que devuelve el geojson
        **************************************************/
       function createGraphics(response) {
-        // raw GeoJSON data
+
 
           //transformar el arrayjson en objetojson
           var stationjson=JSON.parse(response.data.data);
@@ -242,7 +233,7 @@
 
           return {
             geometry: p ,
-            // select only the attributes you care about
+            // se ontienen solo los atributos  que queremos
             attributes: {
               ObjectID: i,
               name: station.name,
@@ -258,21 +249,20 @@
       }
 
       /**************************************************
-       * Create a FeatureLayer with the array of graphics
+       * Se crea un array de graficos
        **************************************************/
 
       function createLayer(graphics) {
 
         lyr = new FeatureLayer({
-          source: graphics, // autocast as an array of esri/Graphic
-          // create an instance of esri/layers/support/Field for each field object
-          fields: fields, // This is required when creating a layer from Graphics
-          objectIdField: "ObjectID", // This must be defined when creating a layer from Graphics
-          renderer: rendererbici, // set the visualization on the layer
+          source: graphics,
+          fields: fields,
+          objectIdField: "ObjectID",
+          renderer: rendererbici,
           spatialReference: {
             wkid: 4326
           },
-          geometryType: "point", // Must be set when creating a layer from Graphics
+          geometryType: "point",
           popupTemplate: pTemplate
         });
 
@@ -281,11 +271,11 @@
       }
 
       /******************************************************************
-       * Add layer to layerInfos in the legend
+       * se crea la leyenda
        ******************************************************************/
 
       function createLegend(layer) {
-        // if the legend already exists, then update it with the new layer
+        //si la leyenda existe se actualiza
         if (legend) {
           legend.layerInfos = [{
             layer: layer,
@@ -303,7 +293,7 @@
         }
       }
 
-      // Executes if data retrieval was unsuccessful. free_bases
+      // ejecuta si la leyenda
     function errback(error) {
         console.error("Creating legend failed. ", error);
       }
